@@ -1,12 +1,15 @@
 local WebP = require("love-webp")
 
-local tex
+local bg
+local short_anim
 function love.load()
   local image = WebP.loadImage(love.filesystem.newFileData("still.webp"))
-  tex = love.graphics.newImage(image)
+
+  short_anim = love.graphics.newArrayImage((WebP.loadImages(love.filesystem.newFileData("short-anim.webp"))))
+  bg = love.graphics.newImage(image)
 end
 
 function love.draw()
-  local x,y = love.mouse.getPosition()
-  love.graphics.draw(tex, -x,-y)
+  love.graphics.draw(bg)
+  love.graphics.drawLayer(short_anim, (love.timer.getTime()*15)%short_anim:getLayerCount()+1, love.graphics.getWidth()/2-short_anim:getWidth()/2, love.graphics.getHeight()-short_anim:getHeight()/2)
 end
