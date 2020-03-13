@@ -115,7 +115,7 @@ end
 -- size: (optional) for cdata
 -- return ImageData or nil on failure
 local function loadImage(data, size)
-  local data, size = normalize_data(data, size)
+  data, size = normalize_data(data, size)
 
   -- read header
   local dims = ffi.new("int[2]")
@@ -131,9 +131,9 @@ end
 -- load WebP frames
 -- data: string, Data or cdata
 -- size: (optional) for cdata
--- return (ImageData list, frame durations list, loop_count) or nil
+-- return (ImageData list, end timestamps list, loops) or nil
 local function loadImages(data, size)
-  local data, size = normalize_data(data, size)
+  data, size = normalize_data(data, size)
 
   -- decoding
   local options = ffi.new("WebPAnimDecoderOptions")
@@ -168,7 +168,131 @@ local function loadImages(data, size)
   end
 end
 
+-- Animation
+
+local Animation = {}
+
+-- PRIVATE METHODS
+
+-- decode next frame (looping)
+local function Animation_next(self)
+  -- loop
+  if webpdemux.WebPAnimDecoderHasMoreFrames(self.decoder) == 0 then
+    webpdemux.WebPAnimDecoderReset(self.decoder)
+  end
+
+  local timestamp = ffi.new("int[1]")
+  if webpdemux.WebPAnimDecoderGetNext(self.decoder, self.buffer, timestamp) ~= 0 then
+    ffi.copy(self.image:getFFIPointer(), self.buffer[0], self.info.canvas_width*self.info.canvas_height*4)
+    self.texture:replacePixels(self.image)
+    self.next_time = timestamp[0]/1000
+  end
+end
+
+-- METHODS
+
+function Animation:play()
+  if not self.ended then
+    self.playing = true
+  end
+end
+
+function Animation:stop()
+  if self.playing then
+    self.playing = false
+    self.ended = false
+    self.time = 0
+    webpdemux.WebPAnimDecoderReset(self.decoder)
+    self.current_frame = 0
+    self.current_loop = 0
+    self.loop_shift = 0
+    Animation_next(self)
+  end
+end
+
+function Animation:pause()
+  self.playing = false
+end
+
+function Animation:tick(dt)
+  if self.playing then
+    self.time = self.time+dt
+
+    -- consume next frames
+    while self.playing and self.time >= self.next_time do
+      -- next frame
+      self.current_frame = self.current_frame+1
+      if self.current_frame >= self.frames then
+        -- next loop
+        self.current_frame = 0
+        self.current_loop = self.current_loop+1
+        self.time = self.time-self.next_time
+
+        if self.loops ~= 0 and self.current_loop >= self.loops then
+          -- pause
+          self.playing = false
+          self.ended = true
+        end
+      end
+
+      Animation_next(self)
+    end
+  end
+end
+
+local Animation_meta = {
+  __index = Animation
+}
+
+-- load WebP animation
+-- The provided data must be alive/constant for the animation lifetime (referenced).
+-- Frames are decoded/streamed from memory.
+--
+-- data: string, Data or cdata
+-- size: (optional) for cdata
+-- return Animation or nil
+local function loadAnimation(data, size)
+  local anim = setmetatable({}, Animation_meta)
+  anim.data_ref = data
+  anim.data, anim.size = normalize_data(data, size)
+
+  -- decoding
+  anim.options = ffi.new("WebPAnimDecoderOptions")
+  anim.webp_data = ffi.new("WebPData", anim.data, anim.size)
+
+  if webpdemux.WebPAnimDecoderOptionsInitInternal(anim.options, webpdemux.WEBP_DEMUX_ABI_VERSION) ~= 0 then
+    anim.decoder = webpdemux.WebPAnimDecoderNewInternal(anim.webp_data, anim.options, webpdemux.WEBP_DEMUX_ABI_VERSION)
+    if anim.decoder ~= nil then
+      -- free decoder on garbage collection
+      anim.gc = newproxy(true)
+      getmetatable(anim.gc).__gc = function() webpdemux.WebPAnimDecoderDelete(anim.decoder) end
+
+      anim.info = ffi.new("WebPAnimInfo")
+      if webpdemux.WebPAnimDecoderGetInfo(anim.decoder, anim.info) ~= 0 then
+        anim.next_time = 0
+        anim.buffer = ffi.new("uint8_t*[1]")
+        anim.image = love.image.newImageData(anim.info.canvas_width, anim.info.canvas_height, "rgba8")
+        anim.texture = love.graphics.newImage(anim.image)
+        anim.frames = anim.info.frame_count
+        anim.loops = anim.info.loop_count
+        anim.current_frame = 0
+        anim.current_loop = 0
+        anim.time = 0
+        anim.playing = false
+        anim.ended = false
+
+        -- load first frame
+        Animation_next(anim)
+
+        return anim
+      end
+
+    end
+  end
+end
+
 return {
   loadImage = loadImage,
-  loadImages = loadImages
+  loadImages = loadImages,
+  loadAnimation = loadAnimation
 }
