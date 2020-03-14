@@ -4,7 +4,7 @@
 --[[
 MIT License
 
-Copyright (c) 2020 Imagic
+Copyright (c) 2020 ImagicTheCat
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -131,7 +131,7 @@ end
 -- load WebP frames
 -- data: string, Data or cdata
 -- size: (optional) for cdata
--- return (ImageData list, end timestamps list, loops) or nil
+-- return (ImageData list, end_timestamp list, loops) or nil on failure
 local function loadImages(data, size)
   data, size = normalize_data(data, size)
 
@@ -191,12 +191,15 @@ end
 
 -- METHODS
 
+-- resume animation
+-- (ended animations must be stopped before being played again)
 function Animation:play()
   if not self.ended then
     self.playing = true
   end
 end
 
+-- stop animation (reset to first frame)
 function Animation:stop()
   if self.playing then
     self.playing = false
@@ -210,10 +213,15 @@ function Animation:stop()
   end
 end
 
+-- pause animation
 function Animation:pause()
   self.playing = false
 end
 
+-- advance animation (if playing)
+-- There is no seeking, all frames are decoded in order.
+--
+-- dt: seconds
 function Animation:tick(dt)
   if self.playing then
     self.time = self.time+dt
@@ -245,7 +253,7 @@ local Animation_meta = {
 }
 
 -- load WebP animation
--- The provided data must be alive/constant for the animation lifetime (referenced).
+-- The provided data must be alive/constant for the animation lifetime (internally referenced).
 -- Frames are decoded/streamed from memory.
 --
 -- data: string, Data or cdata

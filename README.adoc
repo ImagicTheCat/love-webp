@@ -1,0 +1,80 @@
+= love-webp
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+:toc: left
+:toclevels: 5
+
+`love-webp` is a LÖVE library (pure Lua) to handle WebP files. 
+It depends on LuaJIT (FFI), `webp` and `webpdemux` C shared libraries.
+
+See link:examples[] (copy the library and launch the directory with LÖVE).
+
+== Install
+
+See link:src[].
+
+NOTE: `webp` and `webpdemux` shared libraries must be available (system path / executable directory).
+
+== API
+
+[source, lua]
+----
+-- load WebP image
+-- data: string, Data or cdata
+-- size: (optional) for cdata
+-- return ImageData or nil on failure
+M.loadImage(data, size)
+
+
+-- load WebP frames
+-- data: string, Data or cdata
+-- size: (optional) for cdata
+-- return (ImageData list, end_timestamp list, loops) or nil on failure
+M.loadImages(data, size)
+
+-- load WebP animation
+-- The provided data must be alive/constant for the animation lifetime (internally referenced).
+-- Frames are decoded/streamed from memory.
+--
+-- data: string, Data or cdata
+-- size: (optional) for cdata
+-- return Animation or nil
+M.loadAnimation(data, size)
+----
+
+=== Animation
+
+[source, lua]
+----
+self.image -- ImageData (current frame)
+self.texture -- Image (current frame)
+self.time -- current animation time in seconds (for a specific loop)
+self.current_frame -- frame index (0-based, for a specific loop)
+self.current_loop -- loop index (0-based)
+self.frames -- number of frames
+self.loops -- number of loops
+self.playing -- boolean
+self.ended -- boolean
+self.info -- WebPAnimInfo cdata
+
+-- resume animation
+-- (ended animations must be stopped before being played again)
+Animation:play()
+
+-- stop animation (reset to first frame)
+Animation:stop()
+
+-- pause animation
+Animation:pause()
+
+-- advance animation (if playing)
+-- There is no seeking, all frames are decoded in order.
+--
+-- dt: seconds
+Animation:tick(dt)
+----
