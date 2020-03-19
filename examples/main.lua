@@ -20,7 +20,7 @@ end
 function love.draw()
   if t_short then
     -- display short anim
-    local layer = (love.timer.getTime()*15)%short_anim:getLayerCount()+1
+    local layer = math.floor(love.timer.getTime()*15)%short_anim:getLayerCount()+1
     for i=0,15 do
       for j=0,8 do
         love.graphics.drawLayer(short_anim, layer, i*80, j*80)
