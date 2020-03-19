@@ -1,0 +1,18 @@
+= WebP shared libraries distribution
+
+To facilitate the use of the library, here are compiled `webp` and `webpdemux` shared libraries for some platforms.
+
+.Notes
+WebP version:: 1.0.3
+Build::
++
+- CMake + MSBuild 2019
+- CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS
+- WEBP_ENABLE_SIMD
+- WEBP_NEAR_LOSSLESS
+- WEBP_UNICODE
+
+See link:WebP-LICENSE[].
+
+.Platforms
+link:win32[] link:win64[]:: Windows DLLs for LÖVE 32bit/64bit.
